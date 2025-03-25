@@ -27,7 +27,7 @@ async def wait_for_message(reader, writer):
             message = data.decode("utf-8")
             messages = message.split("|NEXT|")
 
-            
+            print(messages)
             if len(messages) == 6:
                 if int(messages[3]) >= 32:
                     prompt = f"Word: {messages[0]}\n\
@@ -46,7 +46,7 @@ Created at: {messages[5]}"
     
 
 async def send_message(message: str):
-    global BOT
+    global BOT, USERS_ID
 
     for user_id in USERS_ID:
         try:
