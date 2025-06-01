@@ -20,7 +20,7 @@ def update_users():
 async def ping(messages: list[str]):
     if len(messages) == 1: # [PING ID]
         return f'|PING|{messages[0]}'
-    return f'|PING|errno|NEXT|0'
+    return f'|PING|errno|NEXT|1'
 
 
 async def add_user(messages: list[str]):
@@ -29,18 +29,24 @@ async def add_user(messages: list[str]):
     if len(messages) == 2: # [TELEGRAM ID, USER INSTRUCTION]
         try:
             if f"{messages[0]}-{messages[1]}" in USERS_ID:
-                return "|ADD|errno|NEXT|2"
+                return "|ADD|errno|NEXT|3"
             # M means - minimum hash value to sent to user ex. M32 - is minimum 32 zeros or ones to notify a user
             # T means - top for ex. T100 mean hash must be in top 100 to notify user
             if messages[1][0] in ['T', 'M'] and int(messages[1][1:]) >= MIN_HASH:
                 with open('users_id.txt', 'a', encoding='utf-8') as file:
                     file.write(f'{messages[0]}-{messages[1]};')
                 update_users()
+                welcome_message = "Welcome to Rarest Hashes Community! "
+                if messages[1][0] == 'M':
+                    welcome_message += f"You will receive notifications based on rarity with {messages[1][1:]} zeros or ones."
+                else:
+                    welcome_message += f"You will receive notifications based on ranking, starting with the TOP {messages[1][1:]}."
+                await send_message(welcome_message, messages[0])
                 return "|ADD|suc"
         except:
             print("This message are not supported")
-            return "|ADD|errno|NEXT|1"
-    return "|ADD|errno|NEXT|0"
+            return "|ADD|errno|NEXT|2"
+    return "|ADD|errno|NEXT|1"
 
 
 async def notify_users(messages: list[str]):
@@ -64,9 +70,9 @@ async def notify_users(messages: list[str]):
             return f'|NEW|suc'
         except:
             print("This message are not supported")
-            return "|ADD|errno|NEXT|1"
+            return "|ADD|errno|NEXT|2"
         
-    return f'|NEW|errno|NEXT|0'
+    return f'|NEW|errno|NEXT|1'
             
 
 async def handle_data(message, channel):       
