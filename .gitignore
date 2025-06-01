@@ -1,4 +1,5 @@
 .env
 test.py
-users_id.txt
+users_data.txt
+test_users_data.txt
 __pycache__/*

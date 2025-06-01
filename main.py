@@ -1,110 +1,41 @@
 import telegram
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from dotenv import load_dotenv
 from datetime import datetime
-
-
 import os
 import asyncio
 import aio_pika
+import time
+
+from command_operation import ping, add_user, delete_user, notify_users
 
 
-def update_users():
-    global USERS_ID
-
-    with open('users_id.txt', 'r') as file:
-        USERS_ID = [uid for uid in file.read().strip().split(';') if uid]
-    return
-
-
-async def ping(messages: list[str]):
-    if len(messages) == 1: # [PING ID]
-        return f'|PING|{messages[0]}'
-    return f'|PING|errno|NEXT|1'
-
-
-async def add_user(messages: list[str]):
-    global MIN_HASH, USERS_ID
-
-    if len(messages) == 2: # [TELEGRAM ID, USER INSTRUCTION]
-        try:
-            if f"{messages[0]}-{messages[1]}" in USERS_ID:
-                return "|ADD|errno|NEXT|3"
-            # M means - minimum hash value to sent to user ex. M32 - is minimum 32 zeros or ones to notify a user
-            # T means - top for ex. T100 mean hash must be in top 100 to notify user
-            if messages[1][0] in ['T', 'M'] and int(messages[1][1:]) >= MIN_HASH:
-                with open('users_id.txt', 'a', encoding='utf-8') as file:
-                    file.write(f'{messages[0]}-{messages[1]};')
-                update_users()
-                welcome_message = "Welcome to Rarest Hashes Community! "
-                if messages[1][0] == 'M':
-                    welcome_message += f"You will receive notifications based on rarity with {messages[1][1:]} zeros or ones."
-                else:
-                    welcome_message += f"You will receive notifications based on ranking, starting with the TOP {messages[1][1:]}."
-                await send_message(welcome_message, messages[0])
-                return "|ADD|suc"
-        except:
-            print("This message are not supported")
-            return "|ADD|errno|NEXT|2"
-    return "|ADD|errno|NEXT|1"
-
-
-async def notify_users(messages: list[str]):
-    global USERS_ID
-    
-    if len(messages) == 7: # [WORD, START FROM BEGINNING, HASH TYPE, COUNTS, USER, CREATED_AT, TOP]
-        prompt = f"TOP {messages[6]}\nWord: {messages[0]}\nCounts: {messages[3]}\nUser: {messages[4]}\nCreated at: {messages[5]}"
-
-        try:
-            for user_id in USERS_ID:
-                user_data = user_id.split("-") # [USER ID, USER INSTRUCTION]
-                user_type = user_data[1][0]
-                user_count = int(user_data[1][1:])
-
-                if user_type == 'M': # Minimum
-                    if int(messages[3]) >= user_count:
-                        await send_message(prompt, user_data[0])
-                else: # Top
-                    if int(messages[6]) <= user_count:
-                        await send_message(prompt, user_data[0])
-            return f'|NEW|suc'
-        except:
-            print("This message are not supported")
-            return "|ADD|errno|NEXT|2"
-        
-    return f'|NEW|errno|NEXT|1'
-            
-
-async def handle_data(message, channel):       
+async def handle_data(message, channel):    
     '''
-    Three types of data:
+    Four types of data:
     |PING| - check connection. params: [ping_id]
     |ADD| - add new user. params: [telegram_id, user_instruction]
     |NEW| - hash has been added. parans: [word, start_from_beginning, hash_type, counts, user, created_at, top]
+    |REM| - remove user. params: [telegram_id, user_instruction]
     
     All parameters separated by: |NEXT|.
     '''
+    global BOT
+
     if message.startswith("|PING|"):
         data = message.split("|PING|")[1].split("|NEXT|")
-        response = await ping(data)
+        response = ping(data)
     elif message.startswith("|ADD|"):
         data = message.split("|ADD|")[1].split("|NEXT|")
-        response = await add_user(data)
+        response = add_user(data, BOT)
     elif message.startswith("|NEW|"):
         data = message.split("|NEW|")[1].split("|NEXT|")
-        response = await notify_users(data)
+        response = notify_users(data, BOT)
+    elif message.startswith("|REM|"):
+        data = message.split("|REM|")[1].split("|NEXT|")
+        response = delete_user(data, BOT)
 
     await send(response, channel)
 
-
-async def send_message(message: str, user_id: str):
-    global BOT
-    try:
-        await BOT.send_message(chat_id=user_id, text=message)
-        return True
-    except Exception as e:
-        print(f"Failed to send message to {user_id}: {e}")
-        return False
     
 async def send(message, channel):
     msg = aio_pika.Message(body=message.encode())
@@ -125,9 +56,24 @@ async def handle_incoming(channel):
                 print(f"({formatted}) Receive: {message}")
                 await handle_data(message, channel)
 
+
 async def main():
-    connection = await aio_pika.connect_robust(f"amqp://{RABBIT_LOGIN}:{RABBIT_PASSWORD}@{RABBIT_HOST}/")
-    channel = await connection.channel()
+    print("Telegram server is starting...")
+    RABBIT_LOGIN = os.getenv('RABBIT_LOGIN').strip()
+    RABBIT_PASSWORD = os.getenv('RABBIT_PASSWORD').strip()
+    RABBIT_HOST = os.getenv('RABBIT_HOST').strip()
+
+    while True:
+        print("RabbitMQ connection...")
+        try:
+            connection = await aio_pika.connect_robust(f"amqp://{RABBIT_LOGIN}:{RABBIT_PASSWORD}@{RABBIT_HOST}/")
+            channel = await connection.channel()
+            print("RabbitMQ connected.")
+            break
+            
+        except:
+            print("RabbitMQ connection failed...")
+            time.sleep(15)
 
     await asyncio.gather(
         handle_incoming(channel)
@@ -137,16 +83,7 @@ async def main():
 if __name__ == "__main__":
     load_dotenv()
 
-    MIN_HASH = 25
     TOKEN = os.getenv('TOKEN')
-    SERVER_HOST = os.getenv('SERVER_HOST')
-    SERVER_PORT = os.getenv('SERVER_PORT')
-    RABBIT_LOGIN = os.getenv('RABBIT_LOGIN').strip()
-    RABBIT_PASSWORD = os.getenv('RABBIT_PASSWORD').strip()
-    RABBIT_HOST = os.getenv('RABBIT_HOST').strip()
-    USERS_ID = []
     BOT = telegram.Bot(token=TOKEN)
-
-    update_users()
 
     asyncio.run(main())
