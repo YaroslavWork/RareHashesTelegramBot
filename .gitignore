@@ -2,4 +2,5 @@
 test.py
 users_data.txt
 test_users_data.txt
-__pycache__/*
+logs.txt
+**/__pycache__/

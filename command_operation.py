@@ -1,8 +1,10 @@
 import asyncio
 import telegram
+
 from database_operation import add_user as _add_user, delete_user, get_all_users_data
 from telegram_utils import send_message
- 
+from notification import log
+
 def ping(messages: list[str]) -> str:
     """
     Ping function ex. |PING|123123
@@ -22,7 +24,7 @@ def ping(messages: list[str]) -> str:
     if len(messages) == 1: # [PING ID]
         return f'|PING|{messages[0]}'
     
-    print("Command Operation (ping): This message is not the correct length.")
+    log("Command Operation (ping)", "This message is not the correct length.")
     return '|PING|errno|NEXT|1'
 
 
@@ -60,7 +62,7 @@ def add_user(messages: list[str], bot: telegram.Bot | None = None, default_name 
             result = _add_user(user_id, f"{user_instruction_type}{user_minimum_value}", default_name)
 
             if result == -1:
-                print("Command Operation (add_user): This user is already in the text file.")
+                log("Command Operation (add_user)", f"User {user_id} is already in the text file.")
                 return '|ADD|errno|NEXT|3'
 
             if bot:
@@ -73,10 +75,10 @@ def add_user(messages: list[str], bot: telegram.Bot | None = None, default_name 
             
             return '|ADD|suc'
         except:
-            print("Command Operation (add_user): This message are not supported.")
+            log("Command Operation (add_user)", f"Message: {str(messages)} are not supported.")
             return '|ADD|errno|NEXT|2'
         
-    print("Command Operation (add_user): This message is not the correct length.")
+    log("Command Operation (add_user)", f"Message: {str(messages)} is not the correct length.")
     return '|ADD|errno|NEXT|1'
 
 
@@ -104,13 +106,13 @@ def remove_user(messages: list[str], bot: telegram.Bot | None = None, default_na
         result = delete_user(user_id, default_name)
         
         if result == -1:
-            print("Command Operation (remove_user): This user not in the text file.")
+            log("Command Operation (remove_user)", f"User {user_id} not in the text file.")
             return '|REM|errno|NEXT|2'
         if bot:
             asyncio.create_task(send_message(bot, "This bot will no longer send you notifications.", user_id))
         return '|REM|suc'
     
-    print("Command Operation (remove_user): This message is not the correct length.")
+    log("Command Operation (remove_user)", f"Message: {str(messages)} is not the correct length.")
     return '|REM|errno|NEXT|1'
 
 
@@ -158,8 +160,8 @@ def notify_users(messages: list[str], bot: telegram.Bot, default_name: str = 'us
                         asyncio.create_task(send_message(bot, prompt, user_id))
             return '|NEW|suc'
         except:
-            print("Command Operation (notify_users): This message are not supported.")
+            log("Command Operation (notify_users)", f"Message: {str(messages)} are not supported.")
             return '|NEW|errno|NEXT|2'
     
-    print("Command Operation (notify_users): This message is not the correct length.")
+    log("Command Operation (notify_users)", f"Message: {str(messages)} is not the correct length.")
     return '|NEW|errno|NEXT|1'

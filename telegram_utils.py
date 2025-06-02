@@ -1,5 +1,7 @@
 import telegram
 
+from notification import log
+
 
 async def send_message(bot: telegram.Bot, message: str, user_id: str) -> bool:
     """
@@ -18,5 +20,5 @@ async def send_message(bot: telegram.Bot, message: str, user_id: str) -> bool:
         await bot.send_message(chat_id=user_id, text=message)
         return True
     except Exception as e:
-        print(f"Failed to send message to {user_id}: {e}")
+        log("Telegram Bot", f"Failed to send message to {user_id}: {e}")
         return False

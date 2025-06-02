@@ -7,6 +7,7 @@ import aio_pika
 import time
 
 from command_operation import ping, add_user, delete_user, notify_users
+from notification import log
 
 
 async def handle_data(message, channel):    
@@ -40,9 +41,7 @@ async def handle_data(message, channel):
 async def send(message, channel):
     msg = aio_pika.Message(body=message.encode())
     await channel.default_exchange.publish(msg, routing_key="telegram_to_website")
-    now = datetime.now()
-    formatted = now.strftime("%d.%m.%Y %H:%M:%S.") + f"{now.microsecond:03d}"
-    print(f"({formatted}) Send: {message}")
+    log("RabbitMQ", f"Send: {message}")
 
 
 async def handle_incoming(channel):
@@ -51,9 +50,7 @@ async def handle_incoming(channel):
         async for message in queue_iter:
             async with message.process():
                 message = message.body.decode()
-                now = datetime.now()
-                formatted = now.strftime("%d.%m.%Y %H:%M:%S.") + f"{now.microsecond:03d}"
-                print(f"({formatted}) Receive: {message}")
+                log("RabbitMQ", f"Receive: {message}")
                 await handle_data(message, channel)
 
 
@@ -64,15 +61,15 @@ async def main():
     RABBIT_HOST = os.getenv('RABBIT_HOST').strip()
 
     while True:
-        print("RabbitMQ connection...")
+        log("RabbitMQ", "Connection...")
         try:
             connection = await aio_pika.connect_robust(f"amqp://{RABBIT_LOGIN}:{RABBIT_PASSWORD}@{RABBIT_HOST}/")
             channel = await connection.channel()
-            print("RabbitMQ connected.")
+            log("RabbitMQ", "Connected")
             break
             
         except:
-            print("RabbitMQ connection failed...")
+            log("RabbitMQ", "Connection failed...")
             time.sleep(15)
 
     await asyncio.gather(
