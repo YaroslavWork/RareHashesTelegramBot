@@ -22,6 +22,9 @@ async def handle_data(message, channel):
     '''
     global BOT
 
+    uuid = message.split('|')[0]
+    message = f"|{'|'.join(message.split('|')[1:])}"
+    
     if message.startswith("|PING|"):
         data = message.split("|PING|")[1].split("|NEXT|")
         response = ping(data)
@@ -34,8 +37,8 @@ async def handle_data(message, channel):
     elif message.startswith("|REM|"):
         data = message.split("|REM|")[1].split("|NEXT|")
         response = delete_user(data, BOT)
-
-    await send(response, channel)
+            
+    await send(f"{uuid}{response}", channel)
 
     
 async def send(message, channel):
