@@ -32,7 +32,7 @@ def add_user(user_id, user_rule, default_name: str = 'users_data') -> int:
         with open(f'{default_name}.txt', 'a') as file:
             file.write(f'{user_id}-{user_rule};')
         return 0
-    log("Database Operation (add_user)" f"User with id {user_id} is already in database.")
+    log("Database Operation (add_user)", f"User with id {user_id} is already in database.")
     return -1
         
     
