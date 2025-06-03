@@ -6,7 +6,7 @@ import asyncio
 import aio_pika
 import time
 
-from command_operation import ping, add_user, delete_user, notify_users
+from command_operation import ping, add_user, remove_user, notify_users
 from notification import log
 
 
@@ -36,7 +36,7 @@ async def handle_data(message, channel):
         response = notify_users(data, BOT)
     elif message.startswith("|REM|"):
         data = message.split("|REM|")[1].split("|NEXT|")
-        response = delete_user(data, BOT)
+        response = remove_user(data, BOT)
             
     await send(f"{uuid}{response}", channel)
 
