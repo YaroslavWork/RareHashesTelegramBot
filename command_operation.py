@@ -1,7 +1,7 @@
 import asyncio
 import telegram
 
-from database_operation import add_user as _add_user, delete_user, get_all_users_data
+from database_operation import add_user as _add_user, delete_user, get_all_users_data, change_rule as _change_rule
 from telegram_utils import send_message
 from notification import log
 
@@ -114,6 +114,63 @@ def remove_user(messages: list[str], bot: telegram.Bot | None = None, default_na
     
     log("Command Operation (remove_user)", f"Message: {str(messages)} is not the correct length.")
     return '|REM|errno|NEXT|1'
+
+
+def change_rule(messages: list[str], bot: telegram.Bot | None = None, default_name: str = 'users_data') -> str:
+    """
+    Change user rule ex. |CHN|123123|NEXT|M32
+
+    Rule types:
+    M means - minimum hash value to sent to user ex. M32 - is minimum 32 zeros or ones to notify a user;
+    T means - top for ex. T100 mean hash must be in top 100 to notify user.
+
+    Args:
+        messages (list[str]):
+            - TELEGRAM_ID - Telegram user id;
+            - USER_INSTRUCTION - Rule set by user.
+        bot (telegram.Bot, optional): The Telegram bot instance used to send the message.
+        default_name (str, optional): Name by default where is save users data. Defaults to 'users_data'.
+
+    Returns:
+        Starts with |CHN|:
+            suc - if the user is changed correctly.
+            errno:
+                1 - if length for ping message does not right;
+                2 - if something wrong in message;
+                3 - if user is not in the text file.
+        Example: |CHN|suc or |CHN|errno|NEXT|2
+    """
+
+    if len(messages) == 2:
+        try:
+            user_id = messages[0]
+            user_instruction_type = messages[1][0]
+            user_minimum_value = int(messages[1][1:])
+
+            result = _change_rule(user_id, f"{user_instruction_type}{user_minimum_value}", default_name)
+
+            if result == -1:
+                log("Command Operation (change_rule)", f"User {user_id} not in the text file.")
+                return '|CHN|errno|NEXT|3'
+            if result == -2:
+                log("Command Operation (change_rule)", f"User {user_id} already has rule {messages[1]}.")
+                return '|CHN|errno|NEXT|4'
+
+            if bot:
+                welcome_message = "Your notification settings have been updated! "
+                if messages[1][0] == 'M':
+                    welcome_message += f"You will now receive notifications based on rarity with {messages[1][1:]} zeros or ones."
+                else:
+                    welcome_message += f"You will now receive notifications based on ranking, starting with the TOP {messages[1][1:]}."
+                asyncio.create_task(send_message(bot, welcome_message, user_id))
+            
+            return '|CHN|suc'
+        except:
+            log("Command Operation (change_rule)", f"Message: {str(messages)} are not supported.")
+            return '|CHN|errno|NEXT|2'
+        
+    log("Command Operation (change_rule)", f"Message: {str(messages)} is not the correct length.")
+    return '|CHN|errno|NEXT|1'
 
 
 def notify_users(messages: list[str], bot: telegram.Bot, default_name: str = 'users_data') -> str:

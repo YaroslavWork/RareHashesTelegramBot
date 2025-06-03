@@ -6,17 +6,18 @@ import asyncio
 import aio_pika
 import time
 
-from command_operation import ping, add_user, remove_user, notify_users
+from command_operation import ping, add_user, remove_user, notify_users, change_rule
 from notification import log
 
 
 async def handle_data(message, channel):    
     '''
-    Four types of data:
+    Five types of data:
     |PING| - check connection. params: [ping_id]
     |ADD| - add new user. params: [telegram_id, user_instruction]
     |NEW| - hash has been added. parans: [word, start_from_beginning, hash_type, counts, user, created_at, top]
     |REM| - remove user. params: [telegram_id, user_instruction]
+    |CHN| - change user rule. params: [telegram_id, user_instruction]
     
     All parameters separated by: |NEXT|.
     '''
@@ -37,7 +38,10 @@ async def handle_data(message, channel):
     elif message.startswith("|REM|"):
         data = message.split("|REM|")[1].split("|NEXT|")
         response = remove_user(data, BOT)
-            
+    elif message.startswith("|CHN|"):
+        data = message.split("|CHN|")[1].split("|NEXT|")
+        response = change_rule(data, BOT)
+    
     await send(f"{uuid}{response}", channel)
 
     

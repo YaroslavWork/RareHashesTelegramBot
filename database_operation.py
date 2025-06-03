@@ -53,6 +53,9 @@ def change_rule(user_id, user_rule, default_name: str = 'users_data') -> int:
 
     user_index = find_user(user_id, default_name)
     if user_index != -1:
+        if get_rule_from_user(user_id, default_name) == user_rule:
+            log("Database Operation (change_rule)", f"User with id {user_id} already has rule {user_rule}.")
+            return -2
         users_data[user_index] = f'{user_id}-{user_rule}'
         
         return write_all_users_data(users_data, default_name)
