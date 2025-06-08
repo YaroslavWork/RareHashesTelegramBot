@@ -4,7 +4,7 @@ import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from database_operation import get_all_users_data, write_all_users_data, find_user, add_user, delete_user, change_rule, get_all_users, get_rule_from_user
+from database_operation import get_all_users_data, write_all_users_data, find_user, add_user, delete_user, change_rule, get_all_users, get_rule_from_user, set_verification_code, check_verification_code, get_command_from_verification
 
 
 def test_database_operations():
@@ -48,3 +48,31 @@ def test_database_operations():
 
     assert change_rule('123611', 'T9999', default_name=test_file) == -1  # Change rule for non-existed user
     assert get_rule_from_user('123611', default_name=test_file) == ""  # Get rule for non-existed user
+
+    assert get_all_users_data(default_name=test_file) == ['123123-T44', '571246412-T100', '9879876-M32']  # Check all users data after operations
+    
+    # Verification code operations
+    verification_file = 'test_users_verification'
+
+    with open(f'{verification_file}.txt', 'w') as file:
+        file.write("")
+
+    assert set_verification_code('2131', '151242', '|ADD|2131|NEXT|M32', default_name=verification_file) == 0
+
+    with open('test_users_verification.txt', 'r') as file:
+        assert file.read() == "2131-151242-|ADD|2131|NEXT|M32;"
+    assert set_verification_code('2131', '804219', '|REM|2131', default_name=verification_file) == 0  # Add same code again
+    with open('test_users_verification.txt', 'r') as file:
+        assert file.read() == "2131-804219-|REM|2131;"
+    assert set_verification_code('4212', '804219', '|ADD|4212|NEXT|M32', default_name=verification_file) == 0  # Add code for non-existent user
+
+    assert check_verification_code('2131', '151242', default_name=verification_file) == -2  # Check with old code
+    assert check_verification_code('2131', '804219', default_name=verification_file) == 0  # Check with new code
+    assert check_verification_code('1441', '804219', default_name=verification_file) == -1  # Check with non-existent user
+    assert check_verification_code('4212', '804219', default_name=verification_file) == 0  # Check with non-existent user but with code
+
+    assert get_command_from_verification('2131', default_name=verification_file) == '|REM|2131'  # Get command from verification code
+    assert get_command_from_verification('4212', default_name=verification_file) == '|ADD|4212|NEXT|M32'  # Get command from verification code for non-existent user
+    assert get_command_from_verification('1441', default_name=verification_file) == ''  # Get command from verification code for non-existent user without code
+    assert get_command_from_verification('2131', default_name=verification_file) == ''  # Get command from verification code after is been used
+    assert get_command_from_verification('4212', default_name=verification_file) == ''  # Get command from verification code after is been used

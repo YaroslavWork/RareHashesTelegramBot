@@ -78,3 +78,38 @@ def get_rule_from_user(user_id: str, default_name: str = 'users_data') -> str:
     log("Database Operation (get_rule_from_user)", f"User with id {user_id} does not exist.")
     return ""
     
+
+def set_verification_code(user_id: str, code: str, command: str, default_name: str = 'users_verification') -> int:
+    user_index = find_user(user_id, default_name)
+    if user_index != -1:
+        users_verification = get_all_users_data(default_name)
+        del users_verification[user_index]
+        write_all_users_data(users_verification, default_name)
+    with open(f'{default_name}.txt', 'a') as file:
+        file.write(f'{user_id}-{code}-{command};')
+    return 0
+
+
+def check_verification_code(user_id: str, code: str, default_name: str = 'users_verification') -> str | int:
+    users_verification = get_all_users_data(default_name)
+
+    user_index = find_user(user_id, default_name)
+    if user_index != -1:
+        if users_verification[user_index].split('-')[1] == code:
+            return 0
+        return -2
+    log("Database Operation (get_verification_code)", f"User with id {user_id} does not exist.")
+    return -1
+
+
+def get_command_from_verification(user_id: str, default_name: str = 'users_verification') -> str:
+    users_verification = get_all_users_data(default_name)
+
+    user_index = find_user(user_id, default_name)
+    if user_index != -1:
+        command = users_verification[user_index].split('-')[2]
+        del users_verification[user_index]
+        write_all_users_data(users_verification, default_name)
+        return command
+    log("Database Operation (get_command_from_verification)", f"User with id {user_id} does not exist.")
+    return ''

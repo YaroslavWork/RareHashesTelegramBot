@@ -1,9 +1,10 @@
 import asyncio
 import telegram
 
-from database_operation import add_user as _add_user, delete_user, get_all_users_data, change_rule as _change_rule
+from database_operation import add_user as _add_user, delete_user, get_all_users_data, change_rule as _change_rule, set_verification_code, check_verification_code, get_command_from_verification
 from telegram_utils import send_message
 from notification import log
+from utils import generate_random_code
 
 def ping(messages: list[str]) -> str:
     """
@@ -28,9 +29,10 @@ def ping(messages: list[str]) -> str:
     return '|PING|errno|NEXT|1'
 
 
-def add_user(messages: list[str], bot: telegram.Bot | None = None, default_name = 'users_data') -> str:
+def add_user(messages: list[str], bot: telegram.Bot | None = None, need_verification: bool = False, default_name = 'users_data') -> str:
     """
     Add user id and rule to text file ex. |ADD|123123|NEXT|M32
+    Or with verification code ex. |ADD|VER|NEXT|123123|NEXT|M32
 
     Rule types:
     M means - minimum hash value to sent to user ex. M32 - is minimum 32 zeros or ones to notify a user;
@@ -41,11 +43,12 @@ def add_user(messages: list[str], bot: telegram.Bot | None = None, default_name 
             - TELEGRAM_ID - Telegram user id;
             - USER_INSTRUCTION - Rule set by user.
         bot (telegram.Bot, optional): The Telegram bot instance used to send the message.
+        need_verification (bool, optional): If True, user will be asked to verify their account. Defaults to False.
         default_name (str, optional): Name by default where is save users data. Defaults to 'users_data'.
 
     Returns:
         Starts with |ADD|:
-            suc - if the user is added correctlyю
+            suc - if the user is added correctly
             errno:
                 1 - if length for ping message does not right;
                 2 - if something wrong in message;
@@ -66,12 +69,18 @@ def add_user(messages: list[str], bot: telegram.Bot | None = None, default_name 
                 return '|ADD|errno|NEXT|3'
 
             if bot:
-                welcome_message = "Welcome to Rarest Hashes Community! "
-                if messages[1][0] == 'M':
-                    welcome_message += f"You will receive notifications based on rarity with {messages[1][1:]} zeros or ones."
+                if need_verification:
+                    verification_code = generate_random_code()
+                    set_verification_code(user_id, verification_code, default_name)
+                    asyncio.create_task(send_message(bot, f"Please verify your account using this code: {verification_code}. If you did not request this, please ignore this message.", user_id))
+                    return '|ADD|ver'.format(user_id)
                 else:
-                    welcome_message += f"You will receive notifications based on ranking, starting with the TOP {messages[1][1:]}."
-                asyncio.create_task(send_message(bot, welcome_message, user_id))
+                    welcome_message = "Welcome to Rarest Hashes Community! "
+                    if messages[1][0] == 'M':
+                        welcome_message += f"You will receive notifications based on rarity with {messages[1][1:]} zeros or ones."
+                    else:
+                        welcome_message += f"You will receive notifications based on ranking, starting with the TOP {messages[1][1:]}."
+                    asyncio.create_task(send_message(bot, welcome_message, user_id))
             
             return '|ADD|suc'
         except:
@@ -82,7 +91,7 @@ def add_user(messages: list[str], bot: telegram.Bot | None = None, default_name 
     return '|ADD|errno|NEXT|1'
 
 
-def remove_user(messages: list[str], bot: telegram.Bot | None = None, default_name = 'users_data') -> str:
+def remove_user(messages: list[str], bot: telegram.Bot | None = None, need_verification: bool = False, default_name = 'users_data') -> str:
     """
     Remove user id from text file ex. |REM|123123
 
@@ -90,6 +99,7 @@ def remove_user(messages: list[str], bot: telegram.Bot | None = None, default_na
         messages (list[str]):
             - TELEGRAM_ID - Telegram user id.
         bot (telegram.Bot, optional): The Telegram bot instance used to send the message.
+        need_verification (bool, optional): If True, user will be asked to verify their account. Defaults to False.
         default_name (str, optional): Name by default where is save users data. Defaults to 'users_data'.
 
     Returns:
@@ -222,3 +232,45 @@ def notify_users(messages: list[str], bot: telegram.Bot, default_name: str = 'us
     
     log("Command Operation (notify_users)", f"Message: {str(messages)} is not the correct length.")
     return '|NEW|errno|NEXT|1'
+
+
+def verification(messages: list[str], bot: telegram.Bot | None = None, default_name: str = 'users_verification') -> str:
+    """
+    Verification user ex. |VER|123123|NEXT|123456
+
+    Args:
+        messages (list[str]):
+            - TELEGRAM_ID - Telegram user id;
+            - CODE - Verification code.
+        bot (telegram.Bot, optional): The Telegram bot instance used to send the message.
+        default_name (str, optional): Name by default where is save users data. Defaults to 'users_verification'.
+
+    Returns:
+        Starts with |VER|:
+            versuc - if the user is verified correctly.
+            vererrno:
+                1 - if length for ping message does not right;
+                2 - if user is not in the text file.
+        Example: |VER|versuc or |VER|vererrno|NEXT|2
+    """
+
+    if len(messages) == 2:
+        user_id = messages[0]
+        code = messages[1]
+
+        get_verification_code = check_verification_code(user_id, code, default_name)
+        if get_verification_code == 0:
+            command = get_command_from_verification(user_id, default_name)
+            if command == -1:
+                log("Command Operation (verification)", f"User {user_id} not in the text file.")
+                return '|VER|vererrno|NEXT|2'
+            elif command == -2:
+                log("Command Operation (verification)", f"Code: {code} is incorrect for user {user_id}.")
+                return '|VER|vererrno|NEXT|3'
+            
+            if bot:
+                asyncio.create_task(send_message(bot, "You have been successfully verified!", user_id))
+            return command
+    
+    log("Command Operation (verification)", f"Message: {str(messages)} is not the correct length.")
+    return '|VER|vererrno|NEXT|1'
