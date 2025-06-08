@@ -62,7 +62,6 @@ async def handle_incoming(channel):
 
 
 async def main():
-    print("Telegram server is starting...")
     RABBIT_LOGIN = os.getenv('RABBIT_LOGIN').strip()
     RABBIT_PASSWORD = os.getenv('RABBIT_PASSWORD').strip()
     RABBIT_HOST = os.getenv('RABBIT_HOST').strip()
@@ -85,6 +84,7 @@ async def main():
 
 
 if __name__ == "__main__":
+    print("Telegram server is starting...")
     load_dotenv()
 
     TOKEN = os.getenv('TOKEN')
