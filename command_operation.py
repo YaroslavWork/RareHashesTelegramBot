@@ -119,7 +119,13 @@ def remove_user(messages: list[str], bot: telegram.Bot | None = None, need_verif
             log("Command Operation (remove_user)", f"User {user_id} not in the text file.")
             return '|REM|errno|NEXT|2'
         if bot:
-            asyncio.create_task(send_message(bot, "This bot will no longer send you notifications.", user_id))
+            if need_verification:
+                verification_code = generate_random_code()
+                set_verification_code(user_id, verification_code, default_name)
+                asyncio.create_task(send_message(bot, f"Please verify your account using this code: {verification_code}. If you did not request this, please ignore this message.", user_id))
+                return '|REM|ver'.format(user_id)
+            else:
+                asyncio.create_task(send_message(bot, "This bot will no longer send you notifications.", user_id))
         return '|REM|suc'
     
     log("Command Operation (remove_user)", f"Message: {str(messages)} is not the correct length.")
