@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.1.3] - 2025-06-09
+- Add readme.md and LICENSE files
+
 ## [v3.1.2] - 2025-06-08
 - Add changelog
 
